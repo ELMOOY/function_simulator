@@ -40,7 +40,7 @@ class App:
         content_frame = tk.Frame(self.main_menu, bg="#1a1a2e")
         content_frame.pack(expand=True)
 
-        tk.Label(content_frame, text="Simulador de Distribuciones 📊", font=title_font, bg="#1a1a2e", fg="white").pack(pady=(30,20))
+        tk.Label(content_frame, text="Simulador de Distribuciones", font=title_font, bg="#1a1a2e", fg="white").pack(pady=(30,20))
 
         options = {
             "Bernoulli": lambda: self.open_simulator("Bernoulli", ["Probabilidad (p)"]),
