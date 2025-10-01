@@ -40,7 +40,7 @@ class App:
         content_frame = tk.Frame(self.main_menu, bg="#1a1a2e")
         content_frame.pack(expand=True)
 
-        tk.Label(content_frame, text="Simulador de Distribuciones", font=title_font, bg="#1a1a2e", fg="white").pack(pady=(30,20))
+        tk.Label(content_frame, text="Simulador de Distribuciones 📊", font=title_font, bg="#1a1a2e", fg="white").pack(pady=(30,20))
 
         options = {
             "Bernoulli": lambda: self.open_simulator("Bernoulli", ["Probabilidad (p)"]),
@@ -87,11 +87,10 @@ class SimulatorWindow:
         self.params = params
         self.data = None
         self.is_function_shown = False
-        self.show_mixture = False
-        self.show_normal1 = False
-        self.show_normal2 = False
+        self.show_final_mixture = False
         self.em_results = None
         self.em_history = []
+        self.em_iteration_vars = []
 
         self.window = tk.Toplevel(root)
         self.window.title(f"Simulador - {dist_type}")
@@ -141,24 +140,38 @@ class SimulatorWindow:
             self.size_entry.pack(side="right", padx=5)
             row.pack(pady=5, fill="x")
 
+        # --- Botones de acción y control ---
         if self.dist_type == "Algoritmo EM (Cáncer)":
-            tk.Button(top_controls_frame, text="Cargar 'Cancer.xlsx'", command=self.load_em_data, bg="#007bff", fg="white", relief="flat").pack(pady=10, fill="x")
-            self.run_em_button = tk.Button(top_controls_frame, text="Ejecutar Algoritmo", command=self.run_em_algorithm, bg="#4CAF50", fg="white", relief="flat", state="disabled")
-            self.run_em_button.pack(pady=5, fill="x")
+            action_em_frame = tk.Frame(top_controls_frame, bg="#2e2e5c")
+            action_em_frame.pack(pady=10)
+            tk.Button(action_em_frame, text="Cargar 'Cancer.xlsx'", command=self.load_em_data, bg="#007bff", fg="white", relief="flat").pack(side="left", padx=3)
+            self.run_em_button = tk.Button(action_em_frame, text="Ejecutar Algoritmo", command=self.run_em_algorithm, bg="#4CAF50", fg="white", relief="flat", state="disabled")
+            self.run_em_button.pack(side="left", padx=3)
             
-            em_button_frame = tk.Frame(top_controls_frame, bg="#2e2e5c")
-            em_button_frame.pack(pady=10)
-            tk.Label(em_button_frame, text="Superponer en 2D:", bg="#2e2e5c", fg="white").pack(pady=(0,5))
-            
-            horizontal_buttons_frame = tk.Frame(em_button_frame, bg="#2e2e5c")
-            horizontal_buttons_frame.pack()
+            history_frame = tk.Frame(top_controls_frame, bg="#2e2e5c")
+            history_frame.pack(pady=5)
+            self.history_button = tk.Button(history_frame, text="Ver Historial", command=self.show_history_window, bg="#6c757d", fg="white", relief="flat", state="disabled")
+            self.history_button.pack(side="left", padx=3)
+            tk.Button(history_frame, text="Limpiar Historial", command=self.clear_em_history, bg="#f44336", fg="white", relief="flat").pack(side="left", padx=3)
 
-            tk.Button(horizontal_buttons_frame, text="Mezcla (Total)", command=self.toggle_mixture, bg="#9a7fdd", fg="white", relief="flat").pack(side="left", padx=3)
-            tk.Button(horizontal_buttons_frame, text="Normal 1", command=self.toggle_normal1, bg="#00bcd4", fg="white", relief="flat").pack(side="left", padx=3)
-            tk.Button(horizontal_buttons_frame, text="Normal 2", command=self.toggle_normal2, bg="#ff9800", fg="white", relief="flat").pack(side="left", padx=3)
             
-            self.history_button = tk.Button(top_controls_frame, text="Ver Historial de Ejecuciones", command=self.show_history_window, bg="#6c757d", fg="white", relief="flat", state="disabled")
-            self.history_button.pack(pady=10, fill='x')
+            tk.Button(top_controls_frame, text="Superponer Mezcla Final", command=self.toggle_final_mixture, bg="#9a7fdd", fg="white", relief="flat").pack(fill="x", pady=5)
+            
+            checklist_container = tk.Frame(top_controls_frame, bg="#2e2e5c")
+            checklist_container.pack(fill="both", expand=True, pady=10)
+            tk.Label(checklist_container, text="Superponer Curvas de Iteraciones:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(anchor='w')
+            
+            checklist_canvas = tk.Canvas(checklist_container, bg="#1a1a2e", highlightthickness=0)
+            checklist_scrollbar = tk.Scrollbar(checklist_container, orient="vertical", command=checklist_canvas.yview)
+            self.checklist_frame = tk.Frame(checklist_canvas, bg="#1a1a2e")
+
+            self.checklist_frame.bind("<Configure>", lambda e: checklist_canvas.configure(scrollregion=checklist_canvas.bbox("all")))
+            checklist_canvas.create_window((0, 0), window=self.checklist_frame, anchor="nw")
+            checklist_canvas.configure(yscrollcommand=checklist_scrollbar.set)
+
+            checklist_canvas.pack(side="left", fill="both", expand=True)
+            checklist_scrollbar.pack(side="right", fill="y")
+
         else:
             action_button_frame = tk.Frame(top_controls_frame, bg="#2e2e5c")
             action_button_frame.pack(pady=10)
@@ -171,15 +184,15 @@ class SimulatorWindow:
                 self.btn_3d = tk.Button(action_button_frame, text="Visualizar en 3D", command=self.show_3d_plot, bg="#ff9800", fg="white", relief="flat")
                 self.btn_3d.pack(side="left", padx=5)
         
-        # --- Panel de resultados (modificado) ---
         if self.dist_type == "Normal Bivariada":
-            tk.Label(top_controls_frame, text="Muestra Generada:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(10, 5), anchor='w')
-            self.results_button = tk.Button(top_controls_frame, text="Ver Muestra en Nueva Ventana", command=self.show_results_window, bg="#6c757d", fg="white", relief="flat", state="disabled")
-            self.results_button.pack(fill="x", pady=5)
-        else:
-            tk.Label(top_controls_frame, text="Resultados de la Última Ejecución:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(10, 5), anchor='w')
-            self.data_text = scrolledtext.ScrolledText(top_controls_frame, height=10, width=40, bg="#1a1a2e", fg="white", relief="flat")
-            self.data_text.pack(fill="both", expand=True, pady=(5,0))
+             tk.Label(top_controls_frame, text="Muestra Generada:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(10, 5), anchor='w')
+             self.results_button = tk.Button(top_controls_frame, text="Ver Muestra en Nueva Ventana", command=self.show_results_window, bg="#6c757d", fg="white", relief="flat", state="disabled")
+             self.results_button.pack(fill="x", pady=5)
+        elif self.dist_type != "Algoritmo EM (Cáncer)":
+             tk.Label(top_controls_frame, text="Resultados de la Última Ejecución:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(10, 5), anchor='w')
+             self.data_text = scrolledtext.ScrolledText(top_controls_frame, height=10, width=40, bg="#1a1a2e", fg="white", relief="flat")
+             self.data_text.pack(fill="both", expand=True, pady=(5,0))
+
 
         plt.style.use('dark_background')
         self.fig, self.ax = plt.subplots(figsize=(8, 6))
@@ -203,6 +216,11 @@ class SimulatorWindow:
         if self.dist_type == "Algoritmo EM (Cáncer)":
             self.run_em_button.config(state="disabled")
             self.history_button.config(state="disabled")
+            if hasattr(self, 'checklist_frame'):
+                for widget in self.checklist_frame.winfo_children():
+                    widget.destroy()
+            self.em_iteration_vars = []
+
         self.ax.clear()
         self.ax.set_title("El histograma aparecerá aquí")
         self.canvas.draw()
@@ -234,7 +252,6 @@ class SimulatorWindow:
                 return
 
             self.run_em_button.config(state="normal")
-            self.data_text.insert(tk.END, "Datos cargados con éxito.\nIngrese el número de iteraciones y ejecute el algoritmo.")
             self.draw_plot()
 
         except Exception as e:
@@ -246,8 +263,10 @@ class SimulatorWindow:
                 messagebox.showinfo("Información", "Primero debes cargar los datos con el botón 'Cargar...'")
                 return
 
-            self.data_text.delete('1.0', tk.END)
-            self.show_mixture, self.show_normal1, self.show_normal2 = False, False, False
+            if hasattr(self, 'checklist_frame'):
+                for widget in self.checklist_frame.winfo_children():
+                    widget.destroy()
+            self.em_iteration_vars = []
 
             num_iterations = int(self.entries["Número de Iteraciones"].get())
             if num_iterations <= 0:
@@ -265,7 +284,12 @@ class SimulatorWindow:
                 pdf1 = stats.norm.pdf(self.data, params['mu1'], params['sigma1'])
                 pdf2 = stats.norm.pdf(self.data, params['mu2'], params['sigma2'])
                 
-                gamma1 = (params['pi1'] * pdf1) / (params['pi1'] * pdf1 + params['pi2'] * pdf2)
+                numerator1 = params['pi1'] * pdf1
+                numerator2 = params['pi2'] * pdf2
+                denominator = numerator1 + numerator2
+                denominator[denominator == 0] = np.finfo(float).eps
+
+                gamma1 = numerator1 / denominator
                 gamma2 = 1 - gamma1
 
                 sum_gamma1, sum_gamma2 = np.sum(gamma1), np.sum(gamma2)
@@ -275,17 +299,26 @@ class SimulatorWindow:
                 params['sigma2'] = np.sqrt(np.sum(gamma2 * (self.data - params['mu2'])**2) / sum_gamma2)
                 
                 iteration_steps.append(params.copy())
-
-            results_str = f"--- Interpretación Final (Tras {num_iterations} iteraciones) ---\n"
-            results_str += f"1. Grupo Benigno: {params['pi1']:.1%} de los datos, con radio promedio de {params['mu1']:.2f}.\n"
-            results_str += f"2. Grupo Maligno: {params['pi2']:.1%} restante, con radio promedio de {params['mu2']:.2f}.\n"
             
-            self.em_results = params
-            self.data_text.insert(tk.END, results_str)
-            
+            self.em_results = {"steps": iteration_steps}
             history_entry = {"iterations": num_iterations, "steps": iteration_steps}
             self.em_history.append(history_entry)
             self.history_button.config(state="normal")
+            
+            for i in range(num_iterations):
+                iter_frame = tk.Frame(self.checklist_frame, bg="#2e2e5c")
+                tk.Label(iter_frame, text=f"Iteración {i+1}:", fg="white", bg="#2e2e5c").pack(side="left", padx=5)
+
+                var1 = tk.BooleanVar()
+                cb1 = tk.Checkbutton(iter_frame, text="N1", variable=var1, command=self.draw_plot, bg="#2e2e5c", fg="cyan", selectcolor="#1a1a2e")
+                cb1.pack(side="left")
+
+                var2 = tk.BooleanVar()
+                cb2 = tk.Checkbutton(iter_frame, text="N2", variable=var2, command=self.draw_plot, bg="#2e2e5c", fg="magenta", selectcolor="#1a1a2e")
+                cb2.pack(side="left")
+
+                self.em_iteration_vars.append((var1, var2))
+                iter_frame.pack(anchor="w")
 
             self.draw_plot()
 
@@ -382,19 +415,9 @@ class SimulatorWindow:
         self.is_function_shown = not self.is_function_shown
         self.draw_plot()
 
-    def toggle_mixture(self):
-        if self.data is None: messagebox.showinfo("Información", "Primero ejecuta el algoritmo."); return
-        self.show_mixture = not self.show_mixture
-        self.draw_plot()
-
-    def toggle_normal1(self):
-        if self.data is None: messagebox.showinfo("Información", "Primero ejecuta el algoritmo."); return
-        self.show_normal1 = not self.show_normal1
-        self.draw_plot()
-
-    def toggle_normal2(self):
-        if self.data is None: messagebox.showinfo("Información", "Primero ejecuta el algoritmo."); return
-        self.show_normal2 = not self.show_normal2
+    def toggle_final_mixture(self):
+        if self.em_results is None: messagebox.showinfo("Información", "Primero ejecuta el algoritmo."); return
+        self.show_final_mixture = not self.show_final_mixture
         self.draw_plot()
 
     def draw_plot(self):
@@ -474,23 +497,33 @@ class SimulatorWindow:
 
         elif self.dist_type == "Algoritmo EM (Cáncer)":
             self.ax.hist(self.data, bins=50, density=True, alpha=0.6, label="Datos 'radius (nucA)'", color="#9a7fdd")
+            legend_needed = True if any(v.get() for row in self.em_iteration_vars for v in row) or self.show_final_mixture else False
+            
             if self.em_results:
-                x = np.linspace(self.data.min(), self.data.max(), 500)
-                p = self.em_results
+                x_curve = np.linspace(self.data.min(), self.data.max(), 500)
+                num_iterations = len(self.em_iteration_vars)
                 
-                pdf1 = stats.norm.pdf(x, p['mu1'], p['sigma1']) * p['pi1']
-                pdf2 = stats.norm.pdf(x, p['mu2'], p['sigma2']) * p['pi2']
-                pdf_total = pdf1 + pdf2
+                colors1 = plt.cm.cool(np.linspace(0.3, 1, num_iterations))
+                colors2 = plt.cm.autumn(np.linspace(0.3, 1, num_iterations))
 
-                if self.show_mixture:
-                    self.ax.plot(x, pdf_total, 'y-', lw=3, label="Mezcla de Normales (Total)")
-                if self.show_normal1:
-                    self.ax.plot(x, pdf1, 'c--', lw=2, label=f"Normal 1 (μ={p['mu1']:.2f})")
-                if self.show_normal2:
-                    self.ax.plot(x, pdf2, 'm--', lw=2, label=f"Normal 2 (μ={p['mu2']:.2f})")
-                
-                if self.show_mixture or self.show_normal1 or self.show_normal2:
-                    self.ax.legend()
+                for i, (var1, var2) in enumerate(self.em_iteration_vars):
+                    if var1.get() or var2.get():
+                        p = self.em_results['steps'][i]
+                        if var1.get():
+                            pdf1 = stats.norm.pdf(x_curve, p['mu1'], p['sigma1']) * p['pi1']
+                            self.ax.plot(x_curve, pdf1, color=colors1[i], linestyle='--', label=f'N1 (Iter {i+1})')
+                        if var2.get():
+                            pdf2 = stats.norm.pdf(x_curve, p['mu2'], p['sigma2']) * p['pi2']
+                            self.ax.plot(x_curve, pdf2, color=colors2[i], linestyle=':', label=f'N2 (Iter {i+1})')
+
+                if self.show_final_mixture:
+                    p_final = self.em_results['steps'][-1]
+                    pdf1_final = stats.norm.pdf(x_curve, p_final['mu1'], p_final['sigma1']) * p_final['pi1']
+                    pdf2_final = stats.norm.pdf(x_curve, p_final['mu2'], p_final['sigma2']) * p_final['pi2']
+                    self.ax.plot(x_curve, pdf1_final + pdf2_final, 'y-', lw=3, label="Mezcla Final")
+
+            if legend_needed:
+                self.ax.legend()
             
             self.ax.set_title("Resultado del Algoritmo EM", color="white")
 
@@ -501,7 +534,7 @@ class SimulatorWindow:
             self.ax.set_ylabel("Densidad / Probabilidad")
         
         self.canvas.draw()
-
+        
     def show_results_window(self):
         if self.data is None:
             messagebox.showinfo("Información", "Primero debes simular los datos.")
@@ -521,6 +554,11 @@ class SimulatorWindow:
         text_area.insert(tk.END, data_str)
         text_area.config(state="disabled")
 
+    def clear_em_history(self):
+        self.em_history = []
+        self.history_button.config(state="disabled")
+        messagebox.showinfo("Historial", "El historial de ejecuciones ha sido limpiado.")
+
     def show_history_window(self):
         if not self.em_history:
             messagebox.showinfo("Historial Vacío", "No hay ejecuciones en el historial.")
@@ -531,14 +569,26 @@ class SimulatorWindow:
         history_win.geometry("1200x700")
         history_win.configure(bg="#1a1a2e")
         
-        container = tk.Frame(history_win, bg="#1a1a2e")
-        container.pack(fill="both", expand=True, padx=10, pady=10)
+        main_frame = tk.Frame(history_win, bg="#1a1a2e")
+        main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        bottom_frame = tk.Frame(main_frame, bg="#1a1a2e")
+        bottom_frame.pack(side="bottom", fill="x", pady=(10,0))
         
-        canvas = tk.Canvas(container, bg="#1a1a2e", highlightthickness=0)
+        def clear_and_close():
+            self.clear_em_history()
+            history_win.destroy()
+
+        tk.Button(bottom_frame, text="Limpiar Historial", command=clear_and_close, bg="#f44336", fg="white", relief="flat").pack()
+
+        top_frame = tk.Frame(main_frame, bg="#1a1a2e")
+        top_frame.pack(fill="both", expand=True)
+
+        canvas = tk.Canvas(top_frame, bg="#1a1a2e", highlightthickness=0)
         
-        v_scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        v_scrollbar = tk.Scrollbar(top_frame, orient="vertical", command=canvas.yview)
         v_scrollbar.pack(side="right", fill="y")
-        x_scrollbar = tk.Scrollbar(container, orient="horizontal", command=canvas.xview)
+        x_scrollbar = tk.Scrollbar(top_frame, orient="horizontal", command=canvas.xview)
         x_scrollbar.pack(side="bottom", fill="x")
         
         canvas.pack(side="left", fill="both", expand=True)
