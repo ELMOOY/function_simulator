@@ -10,13 +10,13 @@ from scipy import stats
 
 # --- Diccionario con descripciones y ejemplos de uso para cada distribución ---
 DIST_DESCRIPTIONS = {
-    "Bernoulli": "Describe un único experimento con solo dos resultados posibles: éxito (1) o fracaso (0).\n\nParámetros:\n- p: Probabilidad de éxito (0 a 1).\n\nEjemplo de Uso:\nEl resultado de lanzar una vez un dado y ver si sale un 6 (éxito, p=1/6).",
-    "Binomial": "Representa el número de éxitos en 'n' ensayos independientes, donde cada ensayo solo tiene dos resultados posibles (éxito o fracaso).\n\nParámetros:\n- n: Número de ensayos (> 0).\n- p: Probabilidad de éxito (0 a 1).\n\nEjemplo de Uso:\nLanzar una moneda 10 veces (n=10) y contar cuántas veces cae 'cara' (p=0.5).",
+    "Bernoulli": "Describe un único experimento con solo dos resultados posibles: éxito (1) o fracaso (0).\n\nParámetros:\n- p: Probabilidad de éxito (0 a 1).\n\nEjemplo de Uso:\nEl resultado de lanzar una moneda una vez y ver si cae 'cara'.",
+    "Binomial": "Representa el número de éxitos en 'n' ensayos independientes, donde cada ensayo solo tiene dos resultados posibles (éxito o fracaso).\n\nParámetros:\n- n: Número de ensayos (> 0).\n- p: Probabilidad de éxito (0 a 1).\n\nEjemplo de Uso:\nLanzar una moneda 10 veces (10 ensayos) y contar cuántas veces cae 'cara'.",
     "Exponencial": "Modela el tiempo que transcurre entre dos eventos consecutivos en un proceso donde los eventos ocurren a una tasa constante.\n\nParámetros:\n- λ (Lambda): Tasa de ocurrencia (> 0).\n\nEjemplo de Uso:\nEl tiempo (en minutos) que esperas en la parada hasta que pasa el siguiente autobús, si llegan en promedio 2 por hora (λ=2).",
     "Normal": "La 'campana de Gauss'. Describe fenómenos naturales donde los datos se agrupan alrededor de un valor central.\n\nParámetros:\n- μ (Mu): Media o valor central.\n- σ (Sigma): Desv. Estándar (> 0).\n\nEjemplo de Uso:\nLas estaturas de los estudiantes de la FCC en la BUAP (ej. media μ=170cm, desv. estándar σ=8cm).",
     "Normal Bivariada": "Modela la relación entre dos variables que están normalmente distribuidas. Es la versión 2D de la campana de Gauss.\n\nParámetros:\n- μ_x, μ_y: Medias de X e Y.\n- σ_x, σ_y: Desv. Estándar (>0).\n- ρ (Rho): Correlación (-1 a 1).\n\nEjemplo de Uso:\nLa relación entre horas de estudio (X) y calificación (Y). Un ρ de 0.8 (ej. μ_x=10, σ_x=2, μ_y=8.5, σ_y=1) indica una fuerte relación positiva.",
     "Función Particular": "Modela una densidad de probabilidad conjunta específica definida por f(x,y) = (1/28)(2x+3y+2) en el dominio 0<x<2, 0<y<2.\n\nParámetros:\n- Ninguno. La función es fija.\n\nEjemplo de Uso:\nSimula sistemas donde la probabilidad aumenta linealmente con X e Y.",
-    "Algoritmo EM (Cáncer)": "Aplica el algoritmo de Maximización de la Esperanza para encontrar los parámetros de una mezcla de dos distribuciones normales a partir de datos reales.\n\nDatos:\n- Se usará la columna 'radius (nucA)' del archivo Cancer.xlsx.\n\nIteraciones:\n- El algoritmo correrá 2 veces."
+    "Algoritmo EM (Cáncer)": "Aplica el algoritmo de Maximización de la Esperanza para encontrar los parámetros de una mezcla de dos distribuciones normales a partir de datos reales.\n\nDatos:\n- Se usará la columna 'radius (nucA)' del archivo Cancer.xlsx.\n\nParámetros:\n- El usuario define el número de iteraciones."
 }
 
 # --- Clase Principal de la Aplicación ---
@@ -49,7 +49,7 @@ class App:
             "Normal Univariada": lambda: self.open_simulator("Normal", ["Media (μ)", "Desv. Estándar (σ)"]),
             "Normal Bivariada (Gibbs)": lambda: self.open_simulator("Normal Bivariada", ["μ_x", "μ_y", "σ_x", "σ_y", "Correlación (ρ)"]),
             "Función Particular": lambda: self.open_simulator("Función Particular", []),
-            "Algoritmo EM (Cáncer)": lambda: self.open_simulator("Algoritmo EM (Cáncer)", [])
+            "Algoritmo EM (Cáncer)": lambda: self.open_simulator("Algoritmo EM (Cáncer)", ["Número de Iteraciones"])
         }
         
         columns_frame = tk.Frame(content_frame, bg="#1a1a2e")
@@ -91,6 +91,7 @@ class SimulatorWindow:
         self.show_normal1 = False
         self.show_normal2 = False
         self.em_results = None
+        self.em_history = []
 
         self.window = tk.Toplevel(root)
         self.window.title(f"Simulador - {dist_type}")
@@ -106,19 +107,46 @@ class SimulatorWindow:
         
         plot_frame = tk.Frame(main_container, bg="#1a1a2e")
         plot_frame.pack(side="right", fill="both", expand=True)
-
-        tk.Label(controls_frame, text=f"Simulador {dist_type}", font=("Helvetica", 18, "bold"), bg="#2e2e5c", fg="white").pack(pady=10)
         
-        desc_label = tk.Label(controls_frame, text=DIST_DESCRIPTIONS[dist_type], justify="left", wraplength=300, bg="#2e2e5c", fg="#d1c4e9")
+        button_frame_bottom = tk.Frame(controls_frame, bg="#2e2e5c")
+        button_frame_bottom.pack(side="bottom", fill="x", pady=(10,0))
+        tk.Button(button_frame_bottom, text="Limpiar", command=self.clear_fields, bg="#f44336", fg="white", relief="flat").pack(fill="x", pady=2)
+        tk.Button(button_frame_bottom, text="Regresar al Menú", command=self.go_to_menu, bg="#6c757d", fg="white", relief="flat").pack(fill="x", pady=2)
+
+        top_controls_frame = tk.Frame(controls_frame, bg="#2e2e5c")
+        top_controls_frame.pack(side="top", fill="both", expand=True)
+
+        tk.Label(top_controls_frame, text=f"Simulador {dist_type}", font=("Helvetica", 18, "bold"), bg="#2e2e5c", fg="white").pack(pady=10)
+        
+        desc_label = tk.Label(top_controls_frame, text=DIST_DESCRIPTIONS[dist_type], justify="left", wraplength=300, bg="#2e2e5c", fg="#d1c4e9")
         desc_label.pack(pady=15, padx=5)
 
         self.entries = {}
-        # CORRECCIÓN: Lógica para mostrar los campos de entrada necesarios
+        if self.dist_type != "Función Particular":
+            for param in self.params:
+                row = tk.Frame(top_controls_frame, bg="#2e2e5c")
+                tk.Label(row, text=f"{param}:", width=15, anchor='w', bg="#2e2e5c", fg="white").pack(side="left")
+                entry = tk.Entry(row, width=10, bg="#1a1a2e", fg="white", insertbackground="white", relief="flat")
+                entry.pack(side="right", padx=5)
+                row.pack(pady=5, fill="x")
+                self.entries[param] = entry
+                if param == "Número de Iteraciones":
+                    entry.insert(0, "2")
+
+        if self.dist_type != "Algoritmo EM (Cáncer)":
+            row = tk.Frame(top_controls_frame, bg="#2e2e5c")
+            tk.Label(row, text="Tamaño Muestra:", width=15, anchor='w', bg="#2e2e5c", fg="white").pack(side="left")
+            self.size_entry = tk.Entry(row, width=10, bg="#1a1a2e", fg="white", insertbackground="white", relief="flat")
+            self.size_entry.insert(0, "1000")
+            self.size_entry.pack(side="right", padx=5)
+            row.pack(pady=5, fill="x")
+
         if self.dist_type == "Algoritmo EM (Cáncer)":
-            # Para EM, solo se necesita el botón de ejecutar
-            tk.Button(controls_frame, text="Cargar 'Cancer.xlsx' y Ejecutar", command=self.run_em_algorithm, bg="#4CAF50", fg="white", relief="flat").pack(pady=10)
+            tk.Button(top_controls_frame, text="Cargar 'Cancer.xlsx'", command=self.load_em_data, bg="#007bff", fg="white", relief="flat").pack(pady=10, fill="x")
+            self.run_em_button = tk.Button(top_controls_frame, text="Ejecutar Algoritmo", command=self.run_em_algorithm, bg="#4CAF50", fg="white", relief="flat", state="disabled")
+            self.run_em_button.pack(pady=5, fill="x")
             
-            em_button_frame = tk.Frame(controls_frame, bg="#2e2e5c")
+            em_button_frame = tk.Frame(top_controls_frame, bg="#2e2e5c")
             em_button_frame.pack(pady=10)
             tk.Label(em_button_frame, text="Superponer en 2D:", bg="#2e2e5c", fg="white").pack(pady=(0,5))
             
@@ -128,27 +156,11 @@ class SimulatorWindow:
             tk.Button(horizontal_buttons_frame, text="Mezcla (Total)", command=self.toggle_mixture, bg="#9a7fdd", fg="white", relief="flat").pack(side="left", padx=3)
             tk.Button(horizontal_buttons_frame, text="Normal 1", command=self.toggle_normal1, bg="#00bcd4", fg="white", relief="flat").pack(side="left", padx=3)
             tk.Button(horizontal_buttons_frame, text="Normal 2", command=self.toggle_normal2, bg="#ff9800", fg="white", relief="flat").pack(side="left", padx=3)
-        else:
-            # Para todas las demás simulaciones, se necesita el tamaño de la muestra
-            row = tk.Frame(controls_frame, bg="#2e2e5c")
-            tk.Label(row, text="Tamaño Muestra:", width=15, anchor='w', bg="#2e2e5c", fg="white").pack(side="left")
-            self.size_entry = tk.Entry(row, width=10, bg="#1a1a2e", fg="white", insertbackground="white", relief="flat")
-            self.size_entry.insert(0, "1000")
-            self.size_entry.pack(side="right", padx=5)
-            row.pack(pady=5, fill="x")
-
-            # Y si tienen parámetros específicos (no es el caso de Función Particular)
-            if self.params:
-                for param in self.params:
-                    row = tk.Frame(controls_frame, bg="#2e2e5c")
-                    tk.Label(row, text=f"{param}:", width=15, anchor='w', bg="#2e2e5c", fg="white").pack(side="left")
-                    entry = tk.Entry(row, width=10, bg="#1a1a2e", fg="white", insertbackground="white", relief="flat")
-                    entry.pack(side="right", padx=5)
-                    row.pack(pady=5, fill="x")
-                    self.entries[param] = entry
             
-            # Botones de acción para simulaciones generales
-            action_button_frame = tk.Frame(controls_frame, bg="#2e2e5c")
+            self.history_button = tk.Button(top_controls_frame, text="Ver Historial de Ejecuciones", command=self.show_history_window, bg="#6c757d", fg="white", relief="flat", state="disabled")
+            self.history_button.pack(pady=10, fill='x')
+        else:
+            action_button_frame = tk.Frame(top_controls_frame, bg="#2e2e5c")
             action_button_frame.pack(pady=10)
             tk.Button(action_button_frame, text="Simular", command=self.run_simulation, bg="#4CAF50", fg="white", relief="flat").pack(side="left", padx=5)
             
@@ -158,17 +170,16 @@ class SimulatorWindow:
             if self.dist_type in ["Normal Bivariada", "Función Particular"]:
                 self.btn_3d = tk.Button(action_button_frame, text="Visualizar en 3D", command=self.show_3d_plot, bg="#ff9800", fg="white", relief="flat")
                 self.btn_3d.pack(side="left", padx=5)
-
-        # Botones comunes
-        button_frame_bottom = tk.Frame(controls_frame, bg="#2e2e5c")
-        button_frame_bottom.pack(pady=10, side="bottom", fill="x")
         
-        tk.Button(button_frame_bottom, text="Limpiar", command=self.clear_fields, bg="#f44336", fg="white", relief="flat").pack(fill="x", pady=5)
-        tk.Button(button_frame_bottom, text="Regresar al Menú", command=self.go_to_menu, bg="#6c757d", fg="white", relief="flat").pack(fill="x", pady=5)
-        
-        tk.Label(controls_frame, text="Resultados:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(20, 5))
-        self.data_text = scrolledtext.ScrolledText(controls_frame, height=10, width=40, bg="#1a1a2e", fg="white", relief="flat")
-        self.data_text.pack(fill="both", expand=True)
+        # --- Panel de resultados (modificado) ---
+        if self.dist_type == "Normal Bivariada":
+            tk.Label(top_controls_frame, text="Muestra Generada:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(10, 5), anchor='w')
+            self.results_button = tk.Button(top_controls_frame, text="Ver Muestra en Nueva Ventana", command=self.show_results_window, bg="#6c757d", fg="white", relief="flat", state="disabled")
+            self.results_button.pack(fill="x", pady=5)
+        else:
+            tk.Label(top_controls_frame, text="Resultados de la Última Ejecución:", font=("Helvetica", 12), bg="#2e2e5c", fg="white").pack(pady=(10, 5), anchor='w')
+            self.data_text = scrolledtext.ScrolledText(top_controls_frame, height=10, width=40, bg="#1a1a2e", fg="white", relief="flat")
+            self.data_text.pack(fill="both", expand=True, pady=(5,0))
 
         plt.style.use('dark_background')
         self.fig, self.ax = plt.subplots(figsize=(8, 6))
@@ -184,7 +195,14 @@ class SimulatorWindow:
             entry.delete(0, tk.END)
         self.data = None
         self.em_results = None
-        self.data_text.delete('1.0', tk.END)
+        self.em_history = []
+        if hasattr(self, 'data_text'):
+            self.data_text.delete('1.0', tk.END)
+        if hasattr(self, 'results_button'):
+            self.results_button.config(state="disabled")
+        if self.dist_type == "Algoritmo EM (Cáncer)":
+            self.run_em_button.config(state="disabled")
+            self.history_button.config(state="disabled")
         self.ax.clear()
         self.ax.set_title("El histograma aparecerá aquí")
         self.canvas.draw()
@@ -193,7 +211,7 @@ class SimulatorWindow:
         self.window.destroy()
         self.main_menu.deiconify()
 
-    def run_em_algorithm(self):
+    def load_em_data(self):
         try:
             filepath = filedialog.askopenfilename(
                 title="Selecciona el archivo Cancer.xlsx",
@@ -201,26 +219,49 @@ class SimulatorWindow:
             )
             if not filepath: return
 
+            self.clear_fields()
             df = pd.read_excel(filepath)
             column = 'radius (nucA)'
             if column not in df.columns:
                 messagebox.showerror("Error de Columna", f"El archivo no contiene la columna '{column}'.")
                 return
             
-            self.data = df[column].dropna().values
-            n_total = len(self.data)
+            numeric_data = pd.to_numeric(df[column], errors='coerce')
+            self.data = numeric_data.dropna().values
+            
+            if len(self.data) == 0:
+                messagebox.showerror("Error de Datos", f"La columna '{column}' no contiene datos numéricos válidos.")
+                return
 
+            self.run_em_button.config(state="normal")
+            self.data_text.insert(tk.END, "Datos cargados con éxito.\nIngrese el número de iteraciones y ejecute el algoritmo.")
+            self.draw_plot()
+
+        except Exception as e:
+            messagebox.showerror("Error al Cargar Datos", f"Ocurrió un error: {e}")
+
+    def run_em_algorithm(self):
+        try:
+            if self.data is None:
+                messagebox.showinfo("Información", "Primero debes cargar los datos con el botón 'Cargar...'")
+                return
+
+            self.data_text.delete('1.0', tk.END)
+            self.show_mixture, self.show_normal1, self.show_normal2 = False, False, False
+
+            num_iterations = int(self.entries["Número de Iteraciones"].get())
+            if num_iterations <= 0:
+                raise ValueError("El número de iteraciones debe ser positivo.")
+
+            n_total = len(self.data)
             data_sorted = np.sort(self.data)
             n1 = n_total // 2
             data1, data2 = data_sorted[:n1], data_sorted[n1:]
             params = {'pi1': 0.5, 'pi2': 0.5, 'mu1': np.mean(data1), 'mu2': np.mean(data2), 'sigma1': np.std(data1), 'sigma2': np.std(data2)}
             
-            results_str = "--- Iteración 0 (Valores Iniciales) ---\n"
-            results_str += f"Grupo 1: μ={params['mu1']:.4f}, σ={params['sigma1']:.4f}, π={params['pi1']:.4f}\n"
-            results_str += f"Grupo 2: μ={params['mu2']:.4f}, σ={params['sigma2']:.4f}, π={params['pi2']:.4f}\n\n"
-            results_str += "Interpretación Inicial:\nSe asume que los datos provienen de dos grupos (Normales) de igual tamaño (π1=π2=0.5). El Grupo 1 representa los radios más pequeños y el Grupo 2 los más grandes.\n\n"
-
-            for i in range(2):
+            iteration_steps = []
+            
+            for i in range(num_iterations):
                 pdf1 = stats.norm.pdf(self.data, params['mu1'], params['sigma1'])
                 pdf2 = stats.norm.pdf(self.data, params['mu2'], params['sigma2'])
                 
@@ -232,21 +273,20 @@ class SimulatorWindow:
                 params['mu1'], params['mu2'] = np.sum(gamma1 * self.data) / sum_gamma1, np.sum(gamma2 * self.data) / sum_gamma2
                 params['sigma1'] = np.sqrt(np.sum(gamma1 * (self.data - params['mu1'])**2) / sum_gamma1)
                 params['sigma2'] = np.sqrt(np.sum(gamma2 * (self.data - params['mu2'])**2) / sum_gamma2)
+                
+                iteration_steps.append(params.copy())
 
-                results_str += f"--- Iteración {i+1} ---\n"
-                results_str += f"Grupo 1: μ={params['mu1']:.4f}, σ={params['sigma1']:.4f}, π={params['pi1']:.4f}\n"
-                results_str += f"Grupo 2: μ={params['mu2']:.4f}, σ={params['sigma2']:.4f}, π={params['pi2']:.4f}\n\n"
-            
-            results_str += "--- Interpretación Final (Tras 2 iteraciones) ---\n"
-            results_str += "El algoritmo sugiere que los datos se componen de dos grupos:\n"
-            results_str += f"1. Un grupo (posiblemente benigno) que constituye el {params['pi1']:.1%} de los datos, con un radio de núcleo promedio de {params['mu1']:.2f}.\n"
-            results_str += f"2. Otro grupo (posiblemente maligno) que es el {params['pi2']:.1%} restante, con un radio de núcleo promedio de {params['mu2']:.2f}.\n\n"
-            results_str += "μ (mu) es la media, σ (sigma) la desviación estándar, y π (pi) es la proporción de cada grupo."
+            results_str = f"--- Interpretación Final (Tras {num_iterations} iteraciones) ---\n"
+            results_str += f"1. Grupo Benigno: {params['pi1']:.1%} de los datos, con radio promedio de {params['mu1']:.2f}.\n"
+            results_str += f"2. Grupo Maligno: {params['pi2']:.1%} restante, con radio promedio de {params['mu2']:.2f}.\n"
             
             self.em_results = params
-            self.data_text.delete('1.0', tk.END)
             self.data_text.insert(tk.END, results_str)
-            self.show_mixture, self.show_normal1, self.show_normal2 = False, False, False
+            
+            history_entry = {"iterations": num_iterations, "steps": iteration_steps}
+            self.em_history.append(history_entry)
+            self.history_button.config(state="normal")
+
             self.draw_plot()
 
         except Exception as e:
@@ -312,20 +352,23 @@ class SimulatorWindow:
             self.is_function_shown = False
             self.draw_plot()
             
-            self.data_text.delete('1.0', tk.END)
-            if self.dist_type == "Bernoulli":
-                successes = np.sum(self.data)
-                total = len(self.data)
-                summary_str = f"Muestra generada con éxito.\n\nDe {total} ensayos:\n- Éxitos (1): {successes}\n- Fracasos (0): {total - successes}"
-                self.data_text.insert(tk.END, summary_str)
-            elif self.dist_type == "Binomial":
-                n = int(params_values["Ensayos (n)"])
-                avg_successes = np.mean(self.data)
-                summary_str = f"Muestra generada con éxito.\n\nEn {size} simulaciones de {n} ensayos cada una:\n\n- Promedio de éxitos: {avg_successes:.2f}"
-                self.data_text.insert(tk.END, summary_str)
-            else:
-                data_str = np.array2string(self.data, precision=4, separator=', ', max_line_width=30)
-                self.data_text.insert(tk.END, "Muestra generada con éxito:\n\n" + data_str)
+            if self.dist_type == "Normal Bivariada":
+                self.results_button.config(state="normal")
+            elif hasattr(self, 'data_text'):
+                self.data_text.delete('1.0', tk.END)
+                if self.dist_type == "Bernoulli":
+                    successes = np.sum(self.data)
+                    total = len(self.data)
+                    summary_str = f"Muestra generada con éxito.\n\nDe {total} ensayos:\n- Éxitos (1): {successes}\n- Fracasos (0): {total - successes}"
+                    self.data_text.insert(tk.END, summary_str)
+                elif self.dist_type == "Binomial":
+                    n = int(params_values["Ensayos (n)"])
+                    avg_successes = np.mean(self.data)
+                    summary_str = f"Muestra generada con éxito.\n\nEn {size} simulaciones de {n} ensayos cada una:\n\n- Promedio de éxitos: {avg_successes:.2f}"
+                    self.data_text.insert(tk.END, summary_str)
+                else:
+                    data_str = np.array2string(self.data, precision=4, separator=', ', max_line_width=30)
+                    self.data_text.insert(tk.END, "Muestra generada con éxito:\n\n" + data_str)
 
         except (ValueError, KeyError) as e:
             messagebox.showerror("Error en los datos", f"Por favor, revisa los parámetros ingresados.\nError: {e}")
@@ -357,10 +400,14 @@ class SimulatorWindow:
     def draw_plot(self):
         if self.data is None: return
         self.ax.clear()
-        params = {p: float(e.get()) for p, e in self.entries.items()} if self.entries else {}
+        
+        try:
+            params = {p: float(e.get()) for p, e in self.entries.items()} if self.entries else {}
+        except ValueError:
+            params = {} 
 
         if self.dist_type == "Bernoulli":
-            p = params["Probabilidad (p)"]
+            p = params.get("Probabilidad (p)", 0.5)
             bins = np.arange(-0.5, 2.5, 1)
             self.ax.hist(self.data, bins=bins, density=True, alpha=0.7, label="Muestra", color="#9a7fdd")
             if self.is_function_shown:
@@ -369,7 +416,7 @@ class SimulatorWindow:
             self.ax.set_title(f"Distribución Bernoulli (p={p:.2f})", color="white")
         
         elif self.dist_type == "Binomial":
-            n, p = int(params["Ensayos (n)"]), params["Probabilidad (p)"]
+            n, p = int(params.get("Ensayos (n)", 1)), params.get("Probabilidad (p)", 0.5)
             bins = np.arange(-0.5, n + 1.5, 1)
             self.ax.hist(self.data, bins=bins, density=True, alpha=0.7, label="Muestra", color="#9a7fdd")
             if self.is_function_shown:
@@ -379,7 +426,7 @@ class SimulatorWindow:
             self.ax.set_title(f"Distribución Binomial (n={n}, p={p:.2f})", color="white")
         
         elif self.dist_type == "Exponencial":
-            lambda_ = params["Tasa (λ)"]
+            lambda_ = params.get("Tasa (λ)", 1)
             self.ax.hist(self.data, bins=30, density=True, alpha=0.7, label="Muestra", color="#9a7fdd")
             if self.is_function_shown:
                 x = np.linspace(self.data.min(), self.data.max(), 100)
@@ -388,7 +435,7 @@ class SimulatorWindow:
             self.ax.set_title(f"Distribución Exponencial (λ={lambda_:.2f})", color="white")
 
         elif self.dist_type == "Normal":
-            mu, sigma = params["Media (μ)"], params["Desv. Estándar (σ)"]
+            mu, sigma = params.get("Media (μ)", 0), params.get("Desv. Estándar (σ)", 1)
             self.ax.hist(self.data, bins=30, density=True, alpha=0.7, label="Muestra", color="#9a7fdd")
             if self.is_function_shown:
                 x = np.linspace(mu - 4*sigma, mu + 4*sigma, 100)
@@ -409,7 +456,9 @@ class SimulatorWindow:
             self.ax.set_title("Función Particular f(x,y)", color="white")
 
         elif self.dist_type == "Normal Bivariada":
-            mu_x, mu_y, sigma_x, sigma_y, rho = (params["μ_x"], params["μ_y"], params["σ_x"], params["σ_y"], params["Correlación (ρ)"])
+            mu_x, mu_y = params.get("μ_x", 0), params.get("μ_y", 0)
+            sigma_x, sigma_y = params.get("σ_x", 1), params.get("σ_y", 1)
+            rho = params.get("Correlación (ρ)", 0)
             self.ax.scatter(self.data[:, 0], self.data[:, 1], alpha=0.5, s=15, color="#9a7fdd", edgecolor='none')
             self.ax.set_xlabel("X")
             self.ax.set_ylabel("Y")
@@ -423,25 +472,27 @@ class SimulatorWindow:
                 self.ax.contour(X, Y, rv.pdf(pos), colors='yellow', alpha=0.7)
             self.ax.set_title("Normal Bivariada (Muestreo de Gibbs)", color="white")
 
-        elif self.dist_type == "Algoritmo EM (Cáncer)" and self.em_results:
+        elif self.dist_type == "Algoritmo EM (Cáncer)":
             self.ax.hist(self.data, bins=50, density=True, alpha=0.6, label="Datos 'radius (nucA)'", color="#9a7fdd")
-            x = np.linspace(self.data.min(), self.data.max(), 500)
-            p = self.em_results
-            
-            pdf1 = stats.norm.pdf(x, p['mu1'], p['sigma1']) * p['pi1']
-            pdf2 = stats.norm.pdf(x, p['mu2'], p['sigma2']) * p['pi2']
-            pdf_total = pdf1 + pdf2
+            if self.em_results:
+                x = np.linspace(self.data.min(), self.data.max(), 500)
+                p = self.em_results
+                
+                pdf1 = stats.norm.pdf(x, p['mu1'], p['sigma1']) * p['pi1']
+                pdf2 = stats.norm.pdf(x, p['mu2'], p['sigma2']) * p['pi2']
+                pdf_total = pdf1 + pdf2
 
-            if self.show_mixture:
-                self.ax.plot(x, pdf_total, 'y-', lw=3, label="Mezcla de Normales (Total)")
-            if self.show_normal1:
-                self.ax.plot(x, pdf1, 'c--', lw=2, label=f"Normal 1 (μ={p['mu1']:.2f})")
-            if self.show_normal2:
-                self.ax.plot(x, pdf2, 'm--', lw=2, label=f"Normal 2 (μ={p['mu2']:.2f})")
+                if self.show_mixture:
+                    self.ax.plot(x, pdf_total, 'y-', lw=3, label="Mezcla de Normales (Total)")
+                if self.show_normal1:
+                    self.ax.plot(x, pdf1, 'c--', lw=2, label=f"Normal 1 (μ={p['mu1']:.2f})")
+                if self.show_normal2:
+                    self.ax.plot(x, pdf2, 'm--', lw=2, label=f"Normal 2 (μ={p['mu2']:.2f})")
+                
+                if self.show_mixture or self.show_normal1 or self.show_normal2:
+                    self.ax.legend()
             
             self.ax.set_title("Resultado del Algoritmo EM", color="white")
-            if self.show_mixture or self.show_normal1 or self.show_normal2:
-                self.ax.legend()
 
 
         if self.dist_type not in ["Normal Bivariada", "Función Particular", "Algoritmo EM (Cáncer)"]:
@@ -450,6 +501,78 @@ class SimulatorWindow:
             self.ax.set_ylabel("Densidad / Probabilidad")
         
         self.canvas.draw()
+
+    def show_results_window(self):
+        if self.data is None:
+            messagebox.showinfo("Información", "Primero debes simular los datos.")
+            return
+
+        results_win = tk.Toplevel(self.window)
+        results_win.title(f"Muestra Generada - {self.dist_type}")
+        results_win.geometry("400x500")
+        results_win.configure(bg="#1a1a2e")
+
+        tk.Label(results_win, text="Datos de la Muestra Simulada", font=("Helvetica", 14, "bold"), bg="#1a1a2e", fg="white").pack(pady=10)
+
+        text_area = scrolledtext.ScrolledText(results_win, bg="#2e2e5c", fg="white", relief="flat")
+        text_area.pack(fill="both", expand=True, padx=10, pady=10)
+
+        data_str = np.array2string(self.data, precision=4, separator=', ', max_line_width=30)
+        text_area.insert(tk.END, data_str)
+        text_area.config(state="disabled")
+
+    def show_history_window(self):
+        if not self.em_history:
+            messagebox.showinfo("Historial Vacío", "No hay ejecuciones en el historial.")
+            return
+
+        history_win = tk.Toplevel(self.window)
+        history_win.title("Historial de Ejecuciones del Algoritmo EM")
+        history_win.geometry("1200x700")
+        history_win.configure(bg="#1a1a2e")
+        
+        container = tk.Frame(history_win, bg="#1a1a2e")
+        container.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        canvas = tk.Canvas(container, bg="#1a1a2e", highlightthickness=0)
+        
+        v_scrollbar = tk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        v_scrollbar.pack(side="right", fill="y")
+        x_scrollbar = tk.Scrollbar(container, orient="horizontal", command=canvas.xview)
+        x_scrollbar.pack(side="bottom", fill="x")
+        
+        canvas.pack(side="left", fill="both", expand=True)
+        canvas.configure(xscrollcommand=x_scrollbar.set, yscrollcommand=v_scrollbar.set)
+        
+        scrollable_frame = tk.Frame(canvas, bg="#1a1a2e")
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+
+        for i, entry in enumerate(self.em_history):
+            exec_num = i + 1
+            iters = entry['iterations']
+            
+            col_frame = tk.Frame(scrollable_frame, bg="#2e2e5c", padx=10, pady=10, bd=1, relief="solid")
+            col_frame.grid(row=0, column=i, sticky="ns", padx=10, pady=10)
+
+            header = f"Ejecución {exec_num} ({iters} iters)"
+            tk.Label(col_frame, text=header, font=("Courier", 12, "bold"), bg="#2e2e5c", fg="white").pack(anchor='w', pady=(0, 10))
+
+            for j, step_params in enumerate(entry['steps']):
+                iter_header = f"--- Iteración {j+1} ---"
+                tk.Label(col_frame, text=iter_header, font=("Courier", 10, "underline"), bg="#2e2e5c", fg="white").pack(anchor='w', pady=(5,0))
+                
+                p = step_params
+                tk.Label(col_frame, text=f"  Grupo 1:", font=("Courier", 10, "bold"), bg="#2e2e5c", fg="cyan").pack(anchor='w', pady=(5,0))
+                tk.Label(col_frame, text=f"    μ: {p['mu1']:.4f}", font=("Courier", 10), bg="#2e2e5c", fg="white").pack(anchor='w')
+                tk.Label(col_frame, text=f"    σ: {p['sigma1']:.4f}", font=("Courier", 10), bg="#2e2e5c", fg="white").pack(anchor='w')
+                tk.Label(col_frame, text=f"    π: {p['pi1']:.4f}", font=("Courier", 10), bg="#2e2e5c", fg="white").pack(anchor='w')
+                
+                tk.Label(col_frame, text=f"  Grupo 2:", font=("Courier", 10, "bold"), bg="#2e2e5c", fg="magenta").pack(anchor='w', pady=(5,0))
+                tk.Label(col_frame, text=f"    μ: {p['mu2']:.4f}", font=("Courier", 10), bg="#2e2e5c", fg="white").pack(anchor='w')
+                tk.Label(col_frame, text=f"    σ: {p['sigma2']:.4f}", font=("Courier", 10), bg="#2e2e5c", fg="white").pack(anchor='w')
+                tk.Label(col_frame, text=f"    π: {p['pi2']:.4f}", font=("Courier", 10), bg="#2e2e5c", fg="white").pack(anchor='w')
 
     def show_3d_plot(self):
         if self.data is None:
