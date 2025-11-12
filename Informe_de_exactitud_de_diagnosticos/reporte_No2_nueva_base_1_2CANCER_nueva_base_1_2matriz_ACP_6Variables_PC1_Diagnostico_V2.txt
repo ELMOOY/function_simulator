@@ -1,0 +1,18 @@
+6 VARIABLES
+--- RESULTADOS DE EXACTITUD ---
+Fecha comparación:  2025-11-10 07:42:16
+Archivo raíz:       nueva_base_1 2(CANCER)
+Archivo Verificado: nueva_base_1_2matriz_ACP_6Variables_PC1_Diagnostico_V2
+----------------------------------------
+TOTAL REGISTROS COMPARADOS:. 569
+COINCIDENCIAS (Correctos):.. 526
+DISCREPANCIAS (Errores):.... 43
+
+>>> EXACTITUD:.............. 92.44 %
+----------------------------------------
+Detalle (Asumiendo M=Positivo, B=Negativo):
+Verdadero positivo (M correctos): 192
+Verdadero negativo (B correctos): 334
+Falso positivo (B predicho como M): 23
+Falso negativo (M predicho como B): 20
+
